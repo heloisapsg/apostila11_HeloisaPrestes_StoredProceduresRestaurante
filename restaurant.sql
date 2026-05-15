@@ -262,6 +262,20 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE PROCEDURE sp_add_varios_clientes(
+    VARIADIC nomes VARCHAR(200)[]
+) LANGUAGE plpgsql
+AS $$
+    DECLARE 
+        cliente_nome VARCHAR (200);
+    BEGIN
+        FOREACH cliente_nome IN ARRAY nomes LOOP
+            INSERT INTO tb_cliente(nome) VALUES (cliente_nome);
+        END LOOP;
+        RAISE NOTICE 'Os clientes % foram cadastrados', nomes;
+    END;
+$$;
+
 /*1.6 Para cada procedimento criado, escreva um bloco anônimo que o coloca em execução*/
 -- Exercício 1
 SELECT * FROM tb_log;
@@ -314,6 +328,13 @@ BEGIN
     RAISE NOTICE 'cliente % | Número total de pedidos: %', nome_cli, num_cliente;
 END;
 $$;
+
+-- exercicio 5
+-- Antes:
+-- SELECT * FROM tb_cliente;
+CALL sp_add_varios_clientes('Lilian','Izaías');
+-- Depois:
+-- SELECT * FROM tb_cliente;
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --DAQUI PRA BAIXO (EXERCICOS NA AULA)
