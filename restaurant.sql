@@ -224,6 +224,26 @@ BEGIN
 END;
 $$;
 
+/*1.3. Reescreva o exercício 1.2 de modo que o total de pedidos seja armazenado em uma
+variável de saída (OUT).*/
+
+-- 1° Criar a procedure
+CREATE OR REPLACE PROCEDURE sp_pedidos_cliente(
+    IN val_cod_cliente INT,
+    OUT total_pedidos INT
+) LANGUAGE plpgsql
+AS $$
+DECLARE
+    nome_cliente VARCHAR (200);
+BEGIN
+    SELECT COUNT(p.cod_pedido) FROM tb_pedido p 
+    JOIN tb_cliente c ON (c.cod_cliente = p.cod_cliente)
+    WHERE c.cod_cliente = $1
+    INTO $2;
+END;
+$$;
+
+
 /*1.6 Para cada procedimento criado, escreva um bloco anônimo que o coloca em execução*/
 -- Exercício 1
 SELECT * FROM tb_log;
@@ -235,6 +255,28 @@ DECLARE
     total INT;
 BEGIN   
     CALL sp_cliente_pedidos(num_cliente);    
+END;
+$$;
+
+-- exercício 3
+DO $$
+DECLARE 
+    num_cliente INT := 3; -- Colocar o número do cliente
+    total INT;
+    nome_cliente VARCHAR (200);
+BEGIN   
+    CALL sp_pedidos_cliente(num_cliente, total);
+
+    SELECT c.nome FROM tb_cliente c WHERE c.cod_cliente = num_cliente
+    INTO nome_cliente;
+
+    IF total > 1 THEN
+        RAISE NOTICE '%, cliente %, fez % pedidos', nome_cliente, num_cliente, total;
+    ELSEIF total = 1 THEN
+        RAISE NOTICE '%, cliente %, fez 1 pedido', nome_cliente, num_cliente;
+    ELSE
+        RAISE NOTICE '%, cliente %, não fez nenhum pedido ainda', nome_cliente, num_cliente;
+    END IF;    
 END;
 $$;
 
