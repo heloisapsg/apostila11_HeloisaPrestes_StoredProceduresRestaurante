@@ -243,6 +243,24 @@ BEGIN
 END;
 $$;
 
+/*1.4. Adicione um procedimento ao sistema do restaurante. Ele deve
+- Receber um parâmetro de entrada e saída (INOUT)
+- Na entrada, o parâmetro possui o código de um cliente
+- Na saída, o parâmetro deve possuir o número total de pedidos realizados pelo cliente*/
+
+-- 1° Criação do procedure
+CREATE OR REPLACE PROCEDURE cli_pedido(
+    INOUT cliente_pedido INT
+) LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT COUNT(p.cod_pedido)
+    FROM tb_pedido p JOIN tb_cliente c 
+        ON (c.cod_cliente = p.cod_cliente)
+    WHERE c.cod_cliente = $1
+    INTO $1;
+END;
+$$;
 
 /*1.6 Para cada procedimento criado, escreva um bloco anônimo que o coloca em execução*/
 -- Exercício 1
@@ -277,6 +295,23 @@ BEGIN
     ELSE
         RAISE NOTICE '%, cliente %, não fez nenhum pedido ainda', nome_cliente, num_cliente;
     END IF;    
+END;
+$$;
+
+-- Exercício 4
+
+DO $$
+DECLARE
+    num_cliente INT :=  3;
+    nome_cli VARCHAR(200);
+BEGIN
+    SELECT c.nome
+    FROM tb_cliente c
+    WHERE c.cod_cliente = num_cliente
+    INTO nome_cli;
+
+    CALL cli_pedido(num_cliente);
+    RAISE NOTICE 'cliente % | Número total de pedidos: %', nome_cli, num_cliente;
 END;
 $$;
 
