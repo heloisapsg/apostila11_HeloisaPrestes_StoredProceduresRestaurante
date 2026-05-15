@@ -1,3 +1,197 @@
+-- Active: 1774975794986@@127.0.0.1@5432@restaurante_da_helo
+-- EXERCICIOOOOOS
+/*-- 1.1 Adicione uma tabela de log ao sistema do restaurante. Ajuste cada procedimento para
+         que ele registre:      
+            - a data em que a operação aconteceu
+            - o nome do procedimento executado */
+
+-- 1° Criação da tabela log
+CREATE TABLE tb_log(
+	id_log SERIAL PRIMARY KEY,
+	data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+	procedimento VARCHAR(200)
+);
+
+SELECT * FROM tb_log;
+
+-- 2° Criação do procedure
+CREATE OR REPLACE PROCEDURE sp_registra_log(
+	IN val_procedimento VARCHAR(200)
+) LANGUAGE plpgsql
+AS $$
+BEGIN
+	INSERT INTO tb_log(data_hora, procedimento) VALUES (CURRENT_TIMESTAMP, val_procedimento);
+END;
+$$;
+
+-- 3° REFORMULANDO PROCEDURESSSSSS para registrar no log
+
+-- 3.1. Cadastro de cliente
+CREATE OR REPLACE PROCEDURE sp_cadastrar_cliente(
+	IN nome VARCHAR(50),
+	IN codigo INT DEFAULT NULL-- SE eu não passar nenhum valor, peço para gerar o código do cliente de maneira interna)
+) LANGUAGE plpgsql
+AS $$
+BEGIN
+	--se o c´digo for null, cadastrar apenas o nome, gerando automático
+	IF codigo IS NULL THEN
+		INSERT INTO tb_cliente(nome) VALUES(nome);
+	--caso contrario, cadastrar com o codigo recebido
+	ELSE
+		INSERT INTO tb_cliente(cod_cliente, nome) VALUES(codigo, nome);
+	END IF;
+	CALL sp_registra_log('Cadastrar Cliente');
+END;
+$$;
+
+-- 3.2. Criação do pedido
+CREATE OR REPLACE PROCEDURE sp_criar_pedido(
+	OUT cod_pedido INT,
+	IN cod_cliente INT) LANGUAGE plpgsql
+AS $$
+	BEGIN
+	INSERT INTO tb_pedido(cod_cliente) VALUES (cod_cliente);
+	--pegar o código d pedido gerado e guardar na variável cod_pedido
+	SELECT LASTVAL() INTO cod_pedido;
+	CALL sp_registra_log('Criar pedido');
+	END;
+$$;
+
+
+-- 3.3. Adicionando itens
+CREATE OR REPLACE PROCEDURE sp_add_itens(
+	IN cod_pedido INT, 
+	IN cod_item INT
+) LANGUAGE plpgsql
+AS $$
+	BEGIN
+	--add item
+	INSERT INTO tb_item_pedido(cod_pedido, cod_item) VALUES ($1, $2);
+	
+	--update
+	UPDATE tb_pedido p SET data_modificacao = CURRENT_TIMESTAMP 
+	WHERE p.cod_pedido = $1; 
+	CALL sp_registra_log('Adicionando itens ao pedido');
+	END;
+$$;
+
+-- 3.4. Calculo do valor do pedido
+CREATE OR REPLACE PROCEDURE sp_calcula_valor_pedido(
+	IN p_cod_pedido INT,
+	OUT valor_total INT
+	) LANGUAGE plpgsql
+	AS $$
+		BEGIN 
+			SELECT SUM(i.valor)
+			FROM tb_pedido p JOIN tb_item_pedido ip
+				ON (p.cod_pedido = ip.cod_pedido)
+			JOIN tb_item i
+				ON (ip.cod_item = i.cod_item)
+			WHERE p.cod_pedido = $1 -- > Variável 1 (p_cod_pedido)
+			INTO $2;
+			CALL sp_registra_log('Calculo do valor total do pedido');
+		END;
+	$$;
+
+-- 3.5. Fechamento do pedido
+CREATE OR REPLACE PROCEDURE sp_fecha_pedido(
+	IN val_cod_pedido INT,
+	IN val_pagamento INT
+	) LANGUAGE plpgsql
+	AS $$
+	DECLARE
+		val_tot_pedido INT;
+	BEGIN
+		CALL sp_calcula_valor_pedido(val_cod_pedido, val_tot_pedido);
+		IF val_pagamento < val_tot_pedido THEN
+			RAISE NOTICE 'Ei!!! Valor insuficiente para pagar a conta! R$%', val_tot_pedido;
+		ELSE 
+			UPDATE tb_pedido p SET
+			data_modificacao = CURRENT_TIMESTAMP,
+			status = 'fechado'
+			WHERE p.cod_pedido = $1;
+		END IF;
+		CALL sp_registra_log('Fechamento de pedido');
+	END;
+	$$;
+
+-- 3.6. Calculo do troco (CÓDIGO DA AULA ALTERADO)
+CREATE OR REPLACE PROCEDURE sp_calcular_troco(
+	OUT troco INT,
+	IN valor_a_pagar INT,
+	IN valor_total INT
+) LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF valor_a_pagar > valor_total THEN
+	    $1 := $2 - $3;
+        RAISE NOTICE 'O troco do pedido 2 é: R$%', troco;
+    ELSE 
+        RAISE NOTICE 'Não há troco';
+    END IF;
+	CALL sp_registra_log('Calculo do troco');
+END;
+$$;
+
+-- 4° Procedimentos testes
+-- 4.1. Chamando a função: Adicionar cliente
+CALL sp_cadastrar_cliente('Heloisa Prestes');
+
+-- 4.2. Chamando a função: Criar pedido
+DO $$
+DECLARE
+	cod_pedido INT;
+	cod_cliente INT;
+BEGIN	
+	SELECT c.cod_cliente FROM tb_cliente c
+	WHERE nome LIKE 'Heloisa Prestes' INTO cod_cliente;
+	CALL sp_criar_pedido(cod_pedido, cod_cliente);
+	RAISE NOTICE 'Código do Pedido gerado: %', cod_pedido;
+END;
+$$
+
+-- 4.3. Chamando a função: Adicionar item ao pedido
+-- Verificar quais itens existem: SELECT * FROM tb_item;
+DO $$
+BEGIN
+	CALL sp_add_itens(2, 5);
+	RAISE NOTICE 'Item adicionado com sucesso';
+END;
+$$
+
+-- 4.4. Chamando a função: Calcular o valor do pedido
+DO $$
+DECLARE
+    valor_TOT INT;
+    num_pedido INT := 2;
+BEGIN
+    CALL sp_calcula_valor_pedido(num_pedido, valor_TOT);
+    RAISE NOTICE 'O valor do pedido % é: R$%,00', num_pedido ,valor_TOT;
+END
+$$
+
+-- 4.5. Chamando a função: Fechar o pedido
+DO $$
+BEGIN
+	CALL sp_fecha_pedido(2, 200);
+END;
+$$
+
+-- 4.6. Chamando a função: Calcular o troco
+DO $$
+DECLARE
+    valor_total INT;
+    troco INT;
+	pagamento INT := 200;
+BEGIN
+	CALL sp_calcula_valor_pedido(2, valor_total);
+	CALL sp_calcular_troco(troco, pagamento, valor_total);
+END;
+$$;
+
+-- 5° Verificação se o sp log funcionou e está registrando na tb_log
+SELECT * FROM tb_log;
+
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --DAQUI PRA BAIXO (EXERCICOS NA AULA)
 
