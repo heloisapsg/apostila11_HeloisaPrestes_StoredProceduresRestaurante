@@ -192,6 +192,52 @@ $$;
 -- 5° Verificação se o sp log funcionou e está registrando na tb_log
 SELECT * FROM tb_log;
 
+/*-- 1.2 Adicione um procedimento ao sistema do restaurante. Ele deve
+    - receber um parâmetro de entrada (IN) que representa o código de um cliente
+    - exibir, com RAISE NOTICE, o total de pedidos que o cliente tem */
+
+-- 1° Criar a procedure
+CREATE OR REPLACE PROCEDURE sp_cliente_pedidos(
+    IN val_cod_cliente INT
+) LANGUAGE plpgsql
+AS $$
+DECLARE
+    nome_cliente VARCHAR (200);
+    total_pedidos INT;
+BEGIN
+    SELECT COUNT(p.cod_pedido) FROM tb_pedido p 
+    JOIN tb_cliente c ON (c.cod_cliente = p.cod_cliente)
+    WHERE c.cod_cliente = $1
+    INTO total_pedidos;
+
+    SELECT c.nome FROM tb_cliente c 
+    WHERE c.cod_cliente = $1
+    INTO nome_cliente;
+
+    IF total_pedidos > 1 THEN
+        RAISE NOTICE '%, cliente %, fez % pedidos', nome_cliente, $1, total_pedidos;
+    ELSEIF total_pedidos = 1 THEN
+        RAISE NOTICE '%, cliente %, fez 1 pedido', nome_cliente, $1;
+    ELSE
+        RAISE NOTICE '%, cliente %, não fez nenhum pedido ainda', nome_cliente, $1;
+    END IF;
+END;
+$$;
+
+/*1.6 Para cada procedimento criado, escreva um bloco anônimo que o coloca em execução*/
+-- Exercício 1
+SELECT * FROM tb_log;
+
+-- Exercício 2
+DO $$
+DECLARE 
+    num_cliente INT := 2; -- Colocar o número do cliente
+    total INT;
+BEGIN   
+    CALL sp_cliente_pedidos(num_cliente);    
+END;
+$$;
+
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --DAQUI PRA BAIXO (EXERCICOS NA AULA)
 
