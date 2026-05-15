@@ -1,5 +1,8 @@
 -- Active: 1774975794986@@127.0.0.1@5432@restaurante_da_helo
 -- EXERCICIOOOOOS
+
+-- Caro professor Bossini, os exercícios abaixo são lidos de cima para baixo, não de baixo para cima
+
 /*-- 1.1 Adicione uma tabela de log ao sistema do restaurante. Ajuste cada procedimento para
          que ele registre:      
             - a data em que a operação aconteceu
@@ -148,7 +151,7 @@ BEGIN
 	CALL sp_criar_pedido(cod_pedido, cod_cliente);
 	RAISE NOTICE 'Código do Pedido gerado: %', cod_pedido;
 END;
-$$
+$$;
 
 -- 4.3. Chamando a função: Adicionar item ao pedido
 -- Verificar quais itens existem: SELECT * FROM tb_item;
